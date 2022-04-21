@@ -236,16 +236,17 @@ for epoch in range(num_epochs):
     #recall = np.zeros( shape = ( 1, 219 ) )
     Macro_F1_score = 0
     for i in range( 219 ):
-        TP = cf_matrix[i, i]
+        TP = int( cf_matrix[i, i] )
         FP = 0
         FN = 0
         for j in range( 219 ):
-            FP += cf_matrix[j, i]
-            FN += cf_matrix[i, j]
+            if i == j:  continue
+            FP += int( cf_matrix[j, i] )
+            FN += int( cf_matrix[i, j] )
 
-        precision = TP / ( TP + FP )
-        recall = TP / ( TP + FN )
-        Macro_F1_score += 2 * precision * recall / ( precision + recall )
+        precision = TP / ( TP + FP ) if TP + FP != 0 else 0
+        recall = TP / ( TP + FN ) if TP + FN != 0 else 0
+        Macro_F1_score += 2 * precision * recall / ( precision + recall ) if precision + recall != 0 else 0
 
     Macro_F1_score /= 219
 
@@ -255,7 +256,7 @@ for epoch in range(num_epochs):
 
     writer.add_scalar('Acc/val', acc, epoch+1)
     print('Accuracy of test images: %f %%' % acc)
-    print('Final score of test images: %f %%' % final_score)
+    print('Final score of test images: %f' % final_score)
 
     if acc > best_accuracy:
         best_accuracy = acc
