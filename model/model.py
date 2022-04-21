@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
 import os
+import random
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
@@ -63,7 +64,7 @@ train_transform4 = transforms.Compose([
 
 train_transform5 = transforms.Compose([
     transforms.Resize((299, 299)),
-    transforms.RandomRotation(60, interpolation=InterpolationMode.BICUBIC, expan                                                                  d=False),
+    transforms.RandomRotation(60, interpolation=InterpolationMode.BICUBIC, expand=False),
     transforms.ToTensor(), # ToTensor : [0, 255] -> [0, 1]
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
@@ -160,9 +161,9 @@ model.fc = nn.Sequential(
 
 model = model.cuda()
 loss = nn.CrossEntropyLoss()
-#optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters                                                                  ()), lr=0.001)
-optimizer = torch.optim.SGD((filter(lambda p: p.requires_grad, model.parameters(                                                                  ))), lr=0.01, momentum=0.7)
-#optimizer = torch.optim.RMSprop((filter(lambda p: p.requires_grad, model.parame                                                                  ters())), lr=0.01, alpha=0.9)
+#optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001)
+optimizer = torch.optim.SGD((filter(lambda p: p.requires_grad, model.parameters())), lr=0.01, momentum=0.7)
+#optimizer = torch.optim.RMSprop((filter(lambda p: p.requires_grad, model.parameters())), lr=0.01, alpha=0.9)
 #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5)
 
 # SummaryWriter
@@ -205,18 +206,56 @@ for epoch in range(num_epochs):
     # test
     correct = 0
     total = 0
+    all_preds = torch.tensor([])
+    all_labels = torch.tensor([])
+    
     model.eval()
     for images, labels in test_dataloader:
+        all_labels = torch.cat( ( all_labels, labels ), dim=0 )
         images = images.cuda()
-        outputs = model(images)
 
-        _, predicted = torch.max(outputs.data, 1)
+        with torch.no_grad():
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+
+        all_preds = torch.cat( ( all_preds, predicted.cpu() ), dim=0 )
 
         total += labels.size(0)
         correct += (predicted == labels.cuda()).sum()
+    
+    stacked = torch.stack( ( all_preds, all_labels ), dim=1 )
+    #print( all_preds )
+    #print( all_labels )
+    cf_matrix = np.zeros( shape = ( 219, 219 ) )
+    for p in stacked:
+        pl, tl = p.tolist()
+        #print( int(tl), int(pl) )
+        cf_matrix[int(tl), int(pl)] += 1
+    
+    #precision = np.zeros( shape = ( 1, 219 ) )
+    #recall = np.zeros( shape = ( 1, 219 ) )
+    Macro_F1_score = 0
+    for i in range( 219 ):
+        TP = cf_matrix[i, i]
+        FP = 0
+        FN = 0
+        for j in range( 219 ):
+            FP += cf_matrix[j, i]
+            FN += cf_matrix[i, j]
+
+        precision = TP / ( TP + FP )
+        recall = TP / ( TP + FN )
+        Macro_F1_score += 2 * precision * recall / ( precision + recall )
+
+    Macro_F1_score /= 219
+
     acc = (100 * float(correct) / total)
+    
+    final_score = 0.5 * acc + 0.5 * Macro_F1_score
+
     writer.add_scalar('Acc/val', acc, epoch+1)
     print('Accuracy of test images: %f %%' % acc)
+    print('Final score of test images: %f %%' % final_score)
 
     if acc > best_accuracy:
         best_accuracy = acc
