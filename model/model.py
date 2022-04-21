@@ -17,7 +17,7 @@ import os
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
-data_path = "/home/users/person/chi/train"
+data_path = "/home/users/person/hsuck/ML-Competition/data"
 
 class MyDataset(Dataset):
     def __init__(self, x, y):
