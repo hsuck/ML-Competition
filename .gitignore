@@ -1,0 +1,4 @@
+*.jpg
+*.csv
+*.pt
+events.out.tfevents.*
