@@ -2,3 +2,4 @@
 *.csv
 *.pt
 events.out.tfevents.*
+*.zip
