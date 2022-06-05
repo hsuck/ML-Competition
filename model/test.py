@@ -23,13 +23,12 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 data_path = "/home/users/person/hsuck/ML-Competition/dataset/training"
 
 class MyDataset(Dataset):
-    def __init__(self, x, y, z):
+    def __init__(self, x, y ):
         self.data = x
-        self.label = y
-        self.filename = z
+        self.filename = y
 
     def __getitem__(self,index):
-        return self.data[index], self.label[index], self.filename[index]
+        return self.data[index], self.filename[index]
 
     def __len__(self):
         return len(self.data)
@@ -46,7 +45,6 @@ import cv2
 import glob
 testx = []
 testy = []
-testz = []
 for folder in glob.iglob(f'{data_path}/val/*'):
     #print(folder)
     #input('>')
@@ -54,13 +52,11 @@ for folder in glob.iglob(f'{data_path}/val/*'):
         img_pil = Image.open(os.path.join(folder, image), mode='r')
         tmp = train_transform(img_pil)
         testx.append( tmp )
-        testy.append(torch.tensor(int(folder.split('/')[-1])))
-        testz.append( image )
+        testy.append( image )
 
 # make data loader
 print('Test length: ' + str(len(testx)))
-batch_size = 64
-my_dataset_test = MyDataset(testx, testy, testz)
+my_dataset_test = MyDataset(testx, testy)
 test_dataloader = DataLoader(my_dataset_test, shuffle=True)
 
 model_path = '/home/users/person/hsuck/ML-Competition/model/runs/Jun04_16-57-12_gslave01/best-model.pt'
@@ -81,18 +77,18 @@ total = 0
 all_preds = torch.tensor([])
 all_labels = torch.tensor([])
 
-for image, label, filename in test_dataloader:
-    all_labels = torch.cat( ( all_labels, label ), dim=0 )
+for image, filename in test_dataloader:
+    #all_labels = torch.cat( ( all_labels, label ), dim=0 )
     image = image.cuda()
 
     with torch.no_grad():
         output = model(image)
         _, predicted = torch.max(output.data, 1)
 
-    all_preds = torch.cat( ( all_preds, predicted.cpu() ), dim=0 )
+    #all_preds = torch.cat( ( all_preds, predicted.cpu() ), dim=0 )
 
-    total += label.size(0)
-    correct += (predicted == label.cuda()).sum()
+    #total += label.size(0)
+    #correct += (predicted == label.cuda()).sum()
     writer.writerow([str( filename[0] ), int( predicted.cpu() )])
     print( str( filename[0] ), int( predicted.cpu() ) )
 """
