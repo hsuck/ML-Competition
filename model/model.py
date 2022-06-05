@@ -14,11 +14,12 @@ from torch.utils.data import Subset
 from torch.utils.tensorboard import SummaryWriter
 import os
 import random
+from efficientnet_pytorch import EfficientNet
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
-data_path = "/home/users/person/hsuck/ML-Competition/data"
+data_path = "/home/users/person/hsuck/ML-Competition/dataset/training"
 
 class MyDataset(Dataset):
     def __init__(self, x, y):
@@ -87,12 +88,12 @@ train_transform7 = transforms.Compose([
 ])
 
 # read label
-import csv
-labels = []
-with open(data_path + '/label.csv', newline='') as csvfile:
-  rows = csv.DictReader(csvfile)
-  for row in rows:
-    labels.append(row)
+#import csv
+#labels = []
+#with open('/home/users/person/hsuck/ML-Competition/data/label.csv', newline='') as csvfile:
+#  rows = csv.DictReader(csvfile)
+#  for row in rows:
+#    labels.append(row)
 
 # read data
 import cv2
@@ -102,39 +103,46 @@ datay = []
 test_n = 400
 testx = []
 testy = []
-t = 0
-for images in glob.iglob(f'{data_path}/*'):
-    # check if the image ends with png
-    if (images.endswith(".jpg")):
-        for label in labels:
-            if label['filename'] in images:
-                img_pil = Image.open(images, mode='r')
-                tmp = train_transform(img_pil)
-                tmp2 = train_transform2(img_pil)
-                tmp3 = train_transform3(img_pil)
-                tmp4 = train_transform4(img_pil)
-                tmp5 = train_transform5(img_pil)
-                tmp6 = train_transform6(img_pil)
-                tmp7 = train_transform7(img_pil)
-                if t % 4 == 0 and t < test_n*10:
-                    testx.append(tmp)
-                    testy.append(torch.tensor(int(label['category'])))
-                else:
-                    datax.append(tmp)
-                    datay.append(torch.tensor(int(label['category'])))
-                t += 1
-                datax.append(tmp2)
-                datax.append(tmp3)
-                datax.append(tmp4)
-                datax.append(tmp5)
-                datax.append(tmp6)
-                datax.append(tmp7)
-                datay.append(torch.tensor(int(label['category'])))
-                datay.append(torch.tensor(int(label['category'])))
-                datay.append(torch.tensor(int(label['category'])))
-                datay.append(torch.tensor(int(label['category'])))
-                datay.append(torch.tensor(int(label['category'])))
-                datay.append(torch.tensor(int(label['category'])))
+
+for folder in glob.iglob(f'{data_path}/train/*'):
+    #print(folder)
+    #input('>')
+    for image in os.listdir( folder ):
+        #print(os.path.join(folder, image))
+        img_pil = Image.open(os.path.join(folder, image), mode='r')
+        tmp = train_transform(img_pil)
+        tmp2 = train_transform2(img_pil)
+        tmp3 = train_transform3(img_pil)
+        tmp4 = train_transform4(img_pil)
+        tmp5 = train_transform5(img_pil)
+        tmp6 = train_transform6(img_pil)
+        tmp7 = train_transform7(img_pil)
+
+        datax.append(tmp)
+        datax.append(tmp2)
+        datax.append(tmp3)
+        datax.append(tmp4)
+        datax.append(tmp5)
+        datax.append(tmp6)
+        datax.append(tmp7)
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        datay.append(torch.tensor(int(folder.split('/')[-1])))
+        #print(int(folder.split('/')[-1]))
+
+input('>')
+for folder in glob.iglob(f'{data_path}/val/*'):
+    #print(folder)
+    #input('>')
+    for image in os.listdir( folder ):
+        img_pil = Image.open(os.path.join(folder, image), mode='r')
+        tmp = train_transform(img_pil)
+        testx.append( tmp )
+        testy.append(torch.tensor(int(folder.split('/')[-1])))
 
 # make data loader
 print('Train length: ' + str(len(datax)))
@@ -145,15 +153,16 @@ my_dataset_test = MyDataset(testx, testy)
 test_dataloader = DataLoader(my_dataset_test, shuffle=True)
 
 # inception v3
-model = models.inception_v3(pretrained=True)
+#model = models.inception_v3(pretrained=True)
+model = EfficientNet.from_pretrained('efficientnet-b0')
 
 model.aux_logits = False
 
 for parameter in model.parameters():
     parameter.requires_grad = False
 
-model.fc = nn.Sequential(
-    nn.Linear(model.fc.in_features, 2048),
+model._fc = nn.Sequential(
+    nn.Linear(model._fc.in_features, 2048),
     nn.Linear(2048, 2048),
     nn.Linear(2048, 219)
 )
@@ -169,7 +178,7 @@ optimizer = torch.optim.SGD((filter(lambda p: p.requires_grad, model.parameters(
 # SummaryWriter
 writer = SummaryWriter()
 
-num_epochs = 32
+num_epochs = 20
 best_accuracy = 0
 
 model.train()
